@@ -78,20 +78,20 @@ app.get('/api/welcome', (req, res) => {
   res.json(welcomeMessage); // Use res.json() to send JSON
 });
 
-// ✨ NEW: SIGN UP a new user ✨
+// ✨ UPDATED SIGN UP ROUTE ✨
 app.post('/api/signup', async (req, res) => {
   try {
-    const { mobileNumber, password } = req.body;
+    const { username, email, mobileNumber, password } = req.body;
 
     // 1. Validate input
-    if (!mobileNumber || !password || password.length < 6) {
-      return res.status(400).json({ message: 'Mobile number and a password of at least 6 characters are required.' });
+    if (!username || !email || !mobileNumber || !password || password.length < 6) {
+      return res.status(400).json({ message: 'All fields are required, and password must be at least 6 characters.' });
     }
 
-    // 2. Check if user already exists
-    const existingUser = await User.findOne({ mobileNumber });
+    // 2. Check if user already exists (by email or mobile)
+    const existingUser = await User.findOne({ $or: [{ email }, { mobileNumber }] });
     if (existingUser) {
-      return res.status(409).json({ message: 'A user with this mobile number already exists.' });
+      return res.status(409).json({ message: 'A user with this email or mobile number already exists.' });
     }
 
     // 3. Hash the password
@@ -100,36 +100,41 @@ app.post('/api/signup', async (req, res) => {
 
     // 4. Create and save the new user
     const user = new User({
+      username,
+      email,
       mobileNumber,
       password: hashedPassword,
     });
     await user.save();
 
-    res.status(201).json({ message: 'User created successfully!' });
+    res.status(201).json({ message: 'User created successfully! Please log in.' });
   } catch (error) {
     res.status(500).json({ message: 'Server error.', error });
   }
 });
 
-// ✨ REWRITTEN: LOG IN an existing user ✨
+// ✨ UPDATED LOGIN ROUTE ✨
 app.post('/api/login', async (req, res) => {
   try {
-    const { mobileNumber, password } = req.body;
+    // Note: We'll use 'identifier' for the field that can be email or mobile
+    const { identifier, password } = req.body;
 
-    // 1. Find the user by mobile number
-    const user = await User.findOne({ mobileNumber });
+    // 1. Find the user by either mobile number or email
+    const user = await User.findOne({ 
+      $or: [{ email: identifier }, { mobileNumber: identifier }] 
+    });
     if (!user) {
       return res.status(400).json({ message: 'Invalid credentials.' });
     }
 
-    // 2. Compare the submitted password with the hashed password in the database
+    // 2. Compare passwords
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ message: 'Invalid credentials.' });
     }
 
-    // 3. If passwords match, create and send a JWT
-    const token = jwt.sign({ mobileNumber: user.mobileNumber }, JWT_SECRET, { expiresIn: '1h' });
+    // 3. Create and send JWT
+    const token = jwt.sign({ userId: user._id, mobileNumber: user.mobileNumber }, JWT_SECRET, { expiresIn: '1h' });
     res.status(200).json({ message: 'Login successful!', token });
   } catch (error) {
     res.status(500).json({ message: 'Server error.', error });

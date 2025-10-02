@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import Login from './components/Login';
+import AnimatedLogin from './components/AnimatedLogin'; // ✨ IMPORT NEW COMPONENT
 import Dashboard from './pages/Dashboard'; // ✨ Import the new Dashboard
 import { Toaster } from 'react-hot-toast'; // ✨ 1. IMPORT
 
@@ -29,8 +29,8 @@ function App() {
         // ✨ If logged in, show the Dashboard ✨
         <Dashboard userToken={userToken} onLogout={handleLogout} />
       ) : (
-        // If not logged in, show the Login component
-        <Login onLoginSuccess={handleLoginSuccess} />
+        <AnimatedLogin onLoginSuccess={handleLoginSuccess} /> // ✨ USE NEW COMPONENT
+
       )}
     </div>
   );
