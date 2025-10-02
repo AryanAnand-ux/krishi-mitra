@@ -9,10 +9,11 @@ const Login = ({ onLoginSuccess }) => {
 
   // New state to control which part of the form is shown
   const [showOtpInput, setShowOtpInput] = useState(false);
-
+  const [isLoading, setIsLoading] = useState(false);
   // Handles the initial mobile number submission
   const handleMobileSubmit = async (event) => {
     event.preventDefault();
+    setIsLoading(true); // ✨ SET LOADING TO TRUE
     try {
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/login`, {
         method: 'POST',
@@ -33,12 +34,15 @@ const Login = ({ onLoginSuccess }) => {
     } catch (error) {
       console.error('Error during login:', error);
       alert('Failed to send OTP. Please try again.');
+    } finally {
+      setIsLoading(false); // ✨ SET LOADING TO FALSE
     }
   };
-  
+
   // ✨ UPDATE THIS FUNCTION to call the new verify endpoint ✨
   const handleOtpSubmit = async (event) => {
     event.preventDefault();
+    setIsLoading(true); // ✨ SET LOADING TO TRUE
     try {
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/verify`, {
         method: 'POST',
@@ -57,6 +61,8 @@ const Login = ({ onLoginSuccess }) => {
     } catch (error) {
       console.error('Error during OTP verification:', error);
       alert('Failed to verify OTP.');
+    } finally {
+      setIsLoading(false); // ✨ SET LOADING TO FALSE
     }
   };
 
@@ -79,8 +85,8 @@ const Login = ({ onLoginSuccess }) => {
               required
             />
           </div>
-          <button type="submit" className="login-button">
-            Get OTP
+          <button type="submit" className="login-button" disabled={isLoading}>
+            {isLoading ? 'Sending OTP...' : 'Get OTP'}
           </button>
         </form>
       ) : (
@@ -99,8 +105,8 @@ const Login = ({ onLoginSuccess }) => {
               required
             />
           </div>
-          <button type="submit" className="login-button">
-            Verify & Login
+          <button type="submit" className="login-button" disabled={isLoading}>
+            {isLoading ? 'Verifying...' : 'Verify & Login'}
           </button>
         </form>
       )}

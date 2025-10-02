@@ -19,10 +19,24 @@ const app = express();
 
 // ENABLE CORS FOR ALL ROUTES 
 // Be more specific about which origins are allowed
+// Define the list of allowed frontend URLs
+const allowedOrigins = [
+  'https://krishi-mitra-sage.vercel.app', // Your live Vercel frontend
+  'http://localhost:5173'                 // Your local development frontend
+];
+
 const corsOptions = {
-  origin: 'https://krishi-mitra-sage.vercel.app', // Your Vercel frontend URL
+  origin: function (origin, callback) {
+    // Check if the incoming origin is in our allowed list
+    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   optionsSuccessStatus: 200
 };
+
 app.use(cors(corsOptions));
 
 app.use(express.json()); // ✨ ADD THIS LINE: Middleware to parse JSON bodies
