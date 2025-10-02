@@ -18,7 +18,12 @@ connectDB(); // ✨ CONNECT TO THE DATABASE
 const app = express();
 
 // ENABLE CORS FOR ALL ROUTES 
-app.use(cors());
+// Be more specific about which origins are allowed
+const corsOptions = {
+  origin: 'https://krishi-mitra-sage.vercel.app', // Your Vercel frontend URL
+  optionsSuccessStatus: 200
+};
+app.use(cors(corsOptions));
 
 app.use(express.json()); // ✨ ADD THIS LINE: Middleware to parse JSON bodies
 
