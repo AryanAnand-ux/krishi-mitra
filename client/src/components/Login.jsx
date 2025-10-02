@@ -14,7 +14,7 @@ const Login = ({ onLoginSuccess }) => {
   const handleMobileSubmit = async (event) => {
     event.preventDefault();
     try {
-      const response = await fetch('http://localhost:3001/api/login', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -40,7 +40,7 @@ const Login = ({ onLoginSuccess }) => {
   const handleOtpSubmit = async (event) => {
     event.preventDefault();
     try {
-      const response = await fetch('http://localhost:3001/api/verify', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mobileNumber, otp }),

@@ -26,7 +26,7 @@ const Dashboard = ({ userToken, onLogout }) => {
       const fetchCrops = async () => {
         setIsLoadingSuggestions(true);
         try {
-          const response = await fetch('http://localhost:3001/api/suggest-crops', {
+          const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/suggest-crops`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
