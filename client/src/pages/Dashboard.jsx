@@ -11,6 +11,8 @@ const ActionButton = ({ onClick, children }) => (
 
 const Dashboard = ({ userToken, onLogout }) => {
   const [location, setLocation] = useState(null);
+  const [address, setAddress] = useState(null); // ✨ ADD THIS STATE
+
   const [isLocating, setIsLocating] = useState(false);
   const [error, setError] = useState('');
 
@@ -19,6 +21,10 @@ const Dashboard = ({ userToken, onLogout }) => {
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [cropInfo, setCropInfo] = useState(null);
 
+   // ✨ This useEffect hook will run once when the component loads
+  useEffect(() => {
+    handleGetLocation();
+  }, []); // The empty array [] means it only runs once on mount
 
   // ✨ NEW: This effect runs whenever the 'location' state changes ✨
   useEffect(() => {
@@ -53,7 +59,7 @@ const Dashboard = ({ userToken, onLogout }) => {
       fetchCrops();
     }
   }, [location, userToken]); // Dependency array: runs when location or userToken changes
-  
+
   const handleGetLocation = () => {
     if (!navigator.geolocation) {
       setError('Geolocation is not supported by your browser.');
@@ -66,9 +72,28 @@ const Dashboard = ({ userToken, onLogout }) => {
     // This is the core Geolocation API call
     navigator.geolocation.getCurrentPosition(
       // Success callback
-      (position) => {
+      async (position) => {
         const { latitude, longitude } = position.coords;
         setLocation({ lat: latitude, lon: longitude });
+        // --- NEW: Reverse Geocoding API Call ---
+        try {
+          const geoApiUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`;
+          const response = await fetch(geoApiUrl);
+          const data = await response.json();
+          
+          if (data.address) {
+            setAddress({
+              pincode: data.address.postcode || 'N/A',
+              cityName: data.address.city || data.address.town || data.address.village || 'N/A',
+              district: data.address.state_district || 'N/A',
+              state: data.address.state || 'N/A',
+              country: data.address.country || 'N/A',
+            });
+          }
+        } catch (geoError) {
+          setError('Could not fetch address details.');
+        }
+        // --- End of new part ---
         setIsLocating(false);
       },
       // Error callback
@@ -82,12 +107,12 @@ const Dashboard = ({ userToken, onLogout }) => {
       }
     );
   };
-  
+
   return (
     <div style={{ textAlign: 'center', padding: '2rem' }}>
       <h1>Welcome to Krishi Mitra!</h1>
       <p>Let's find the best crops for you to grow.</p>
-      
+
       {!location && (
         <ActionButton onClick={handleGetLocation}>
           {isLocating ? 'Getting Location...' : 'Get My Location'}
@@ -95,15 +120,17 @@ const Dashboard = ({ userToken, onLogout }) => {
       )}
 
       {error && <p style={{ color: 'red' }}>{error}</p>}
-      
-      {location && (
+
+        {/* ✨ NEW: Display the formatted address */}
+      {address && (
         <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#e8f5e9', borderRadius: '8px' }}>
-          <h3>Your Location:</h3>
-          <p>Latitude: {location.lat.toFixed(4)}</p>
-          <p>Longitude: {location.lon.toFixed(4)}</p>
+          <h3>Your Detected Location:</h3>
+          <p>
+            {address.cityName}, {address.district}, {address.state} - {address.pincode}
+          </p>
         </div>
       )}
-       {/* ✨ NEW: Display area for crop suggestions ✨ */}
+      {/* ✨ NEW: Display area for crop suggestions ✨ */}
       {isLoadingSuggestions && <p>Finding the best crops for your area...</p>}
 
       {suggestions.length > 0 && (
@@ -119,7 +146,7 @@ const Dashboard = ({ userToken, onLogout }) => {
           </ul>
         </div>
       )}
-      
+
       <div style={{ marginTop: '50px' }}>
         <ActionButton onClick={onLogout}>Logout</ActionButton>
       </div>

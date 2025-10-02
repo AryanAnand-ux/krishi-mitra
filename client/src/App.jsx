@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Login from './components/Login';
 import Dashboard from './pages/Dashboard'; // ✨ Import the new Dashboard
+import { Toaster } from 'react-hot-toast'; // ✨ 1. IMPORT
 
 function App() {
   // ✨ CHANGE 1: Initialize state from localStorage ✨
@@ -22,6 +23,8 @@ function App() {
 
   return (
     <div className="App">
+      <Toaster position="top-center" /> {/* ✨ 2. ADD THE COMPONENT */}
+
       {userToken ? (
         // ✨ If logged in, show the Dashboard ✨
         <Dashboard userToken={userToken} onLogout={handleLogout} />

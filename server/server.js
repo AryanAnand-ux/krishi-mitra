@@ -4,6 +4,8 @@ const cors = require('cors'); //  IMPORT THE CORS PACKAGE
 const jwt = require('jsonwebtoken'); // ✨ IMPORT JWT LIBRARY
 require('dotenv').config(); // ✨ ADD THIS: Loads variables from .env file
 const connectDB = require('./config/db'); // ✨ ADD THIS: Import our DB connection function
+const bcrypt = require('bcrypt'); // ✨ IMPORT BCRYPT
+
 const User = require('./models/User'); // ✨ IMPORT THE USER MODEL
 // 2. Create an instance of the express application
 const { getSeason, getRegion, cropDatabase } = require('./cropData'); // ✨ IMPORT OUR NEW MODULES
@@ -76,44 +78,61 @@ app.get('/api/welcome', (req, res) => {
   res.json(welcomeMessage); // Use res.json() to send JSON
 });
 
-// --- REPLACE THE ENTIRE /api/login ROUTE WITH THIS NEW VERSION ---
-app.post('/api/login', async (req, res) => {
-  const { mobileNumber } = req.body;
-  if (!mobileNumber || mobileNumber.length < 10) {
-    return res.status(400).json({ success: false, message: 'Invalid mobile number.' });
-  }
-
-  const otp = Math.floor(1000 + Math.random() * 9000).toString();
-  const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // OTP expires in 5 minutes
-
+// ✨ NEW: SIGN UP a new user ✨
+app.post('/api/signup', async (req, res) => {
   try {
-    // First, save the user and OTP to our database
-    await User.findOneAndUpdate(
-      { mobileNumber: mobileNumber },
-      { mobileNumber: mobileNumber, otp: otp, otpExpires: otpExpires },
-      { new: true, upsert: true, setDefaultsOnInsert: true }
-    );
+    const { mobileNumber, password } = req.body;
 
-    // ✨ 2. SEND THE REAL SMS USING TWILIO ✨
-    await twilioClient.messages.create({
-      body: `Your Krishi Mitra OTP is: ${otp}`,
-      from: process.env.TWILIO_PHONE_NUMBER,
-      // IMPORTANT: Format the number for Twilio (E.164 format)
-      // Since we are in India, we prepend +91
-      to: `+91${mobileNumber}`,
-    });
-
-    console.log(`Successfully sent OTP to ${mobileNumber}`);
-    res.status(200).json({ success: true, message: 'OTP sent successfully.' });
-
-  } catch (error) {
-    // Differentiate between Twilio errors and other errors
-    if (error.code === 21211) { // Twilio error code for invalid 'To' number
-        console.error('Twilio Error: Invalid phone number.', error.message);
-        return res.status(400).json({ success: false, message: 'The destination phone number is not a valid number.'});
+    // 1. Validate input
+    if (!mobileNumber || !password || password.length < 6) {
+      return res.status(400).json({ message: 'Mobile number and a password of at least 6 characters are required.' });
     }
-    console.error('An error occurred:', error);
-    res.status(500).json({ success: false, message: 'Server error.' });
+
+    // 2. Check if user already exists
+    const existingUser = await User.findOne({ mobileNumber });
+    if (existingUser) {
+      return res.status(409).json({ message: 'A user with this mobile number already exists.' });
+    }
+
+    // 3. Hash the password
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // 4. Create and save the new user
+    const user = new User({
+      mobileNumber,
+      password: hashedPassword,
+    });
+    await user.save();
+
+    res.status(201).json({ message: 'User created successfully!' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error.', error });
+  }
+});
+
+// ✨ REWRITTEN: LOG IN an existing user ✨
+app.post('/api/login', async (req, res) => {
+  try {
+    const { mobileNumber, password } = req.body;
+
+    // 1. Find the user by mobile number
+    const user = await User.findOne({ mobileNumber });
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid credentials.' });
+    }
+
+    // 2. Compare the submitted password with the hashed password in the database
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Invalid credentials.' });
+    }
+
+    // 3. If passwords match, create and send a JWT
+    const token = jwt.sign({ mobileNumber: user.mobileNumber }, JWT_SECRET, { expiresIn: '1h' });
+    res.status(200).json({ message: 'Login successful!', token });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error.', error });
   }
 });
 
