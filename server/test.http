@@ -1,0 +1,8 @@
+POST http://localhost:3001/api/weather
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OGRlOTNjNDMxNWY3N2U5Zjk3Y2M3NTciLCJtb2JpbGVOdW1iZXIiOiIxMTExMTExMTExIiwiaWF0IjoxNzU5NTAyMDUzLCJleHAiOjE3NTk1MDU2NTN9.yUtcN6bZjZ_rH9D7Uur3cQF-6kI4RRpaZgjQx0wC14I
+
+{
+  "lat": 28.6139,
+  "lon": 77.2090
+}

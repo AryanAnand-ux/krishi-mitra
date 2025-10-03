@@ -1,19 +1,16 @@
 // client/src/components/AnimatedLogin.jsx
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
-import './AnimatedLogin.css'; // Import the new styles
 
 const AnimatedLogin = ({ onLoginSuccess }) => {
-  // State for all form inputs
+  // State and logic functions remain the same
+  const [isSignUp, setIsSignUp] = useState(false);
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
   const [password, setPassword] = useState('');
-  
-  // State for login form
-  const [identifier, setIdentifier] = useState(''); // Can be email or mobile
+  const [identifier, setIdentifier] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
-  
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSignUp = async (e) => {
@@ -28,7 +25,8 @@ const AnimatedLogin = ({ onLoginSuccess }) => {
       const data = await response.json();
       if (response.ok) {
         toast.success(data.message);
-        // Maybe automatically flip to login form
+        setIsSignUp(false); // Switch to login view
+        document.getElementById('chk').checked = false;
       } else {
         toast.error(data.message);
       }
@@ -61,28 +59,43 @@ const AnimatedLogin = ({ onLoginSuccess }) => {
     }
   };
 
+
   return (
-    <div className="main-container">
-      <input type="checkbox" id="chk" aria-hidden="true" />
+<div className="flex justify-center items-center min-h-screen bg-gray-100 dark:bg-gray-900 font-sans p-4">
+        <div className="relative w-full max-w-sm h-[500px]">
+        <input 
+          type="checkbox" 
+          id="chk" 
+          className="hidden" 
+          checked={isSignUp} 
+          onChange={() => setIsSignUp(!isSignUp)} 
+        />
 
-      <div className="signup-form">
-        <form onSubmit={handleSignUp}>
-          <label htmlFor="chk" aria-hidden="true">Sign up</label>
-          <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="User name" required />
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required />
-          <input type="tel" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} placeholder="Mobile Number" required />
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required />
-          <button disabled={isLoading}>{isLoading ? 'Signing up...' : 'Sign up'}</button>
-        </form>
-      </div>
+        {/* --- Sign Up Form --- */}
+        <div className={`w-full h-full absolute transition-transform duration-700 ease-in-out ${isSignUp ? 'transform-none' : 'transform scale-60 opacity-0 pointer-events-none'}`}>
+          <form onSubmit={handleSignUp} className="flex flex-col items-center justify-center h-full p-6 bg-gray-800 rounded-lg shadow-lg">
+            <label htmlFor="chk" className="text-white text-4xl font-bold mb-6 cursor-pointer select-none">Sign up</label>
+            <input className="w-4/5 p-3 mb-4 bg-gray-200 text-gray-800 rounded border-none outline-none" type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="User name" required />
+            <input className="w-4/5 p-3 mb-4 bg-gray-200 text-gray-800 rounded border-none outline-none" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required />
+            <input className="w-4/5 p-3 mb-4 bg-gray-200 text-gray-800 rounded border-none outline-none" type="tel" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} placeholder="Mobile Number" required />
+            <input className="w-4/5 p-3 mb-4 bg-gray-200 text-gray-800 rounded border-none outline-none" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required />
+            <button disabled={isLoading} className="w-4/5 p-3 mt-2 bg-purple-600 text-white rounded border-none text-lg font-bold cursor-pointer hover:bg-purple-700 disabled:bg-gray-500">
+              {isLoading ? 'Signing up...' : 'Sign up'}
+            </button>
+          </form>
+        </div>
 
-      <div className="login-form">
-        <form onSubmit={handleLogin}>
-          <label htmlFor="chk" aria-hidden="true">Login</label>
-          <input type="text" value={identifier} onChange={(e) => setIdentifier(e.target.value)} placeholder="Email or Mobile Number" required />
-          <input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} placeholder="Password" required />
-          <button disabled={isLoading}>{isLoading ? 'Logging in...' : 'Login'}</button>
-        </form>
+        {/* --- Login Form --- */}
+        <div className={`w-full h-full absolute transition-transform duration-700 ease-in-out ${isSignUp ? 'transform -translate-y-[500px]' : 'transform-none'}`}>
+          <form onSubmit={handleLogin} className="flex flex-col items-center justify-center h-full p-6 bg-white rounded-lg shadow-lg">
+            <label htmlFor="chk" className="text-purple-600 text-4xl font-bold mb-10 cursor-pointer select-none">Login</label>
+            <input className="w-4/5 p-3 mb-4 bg-gray-200 text-gray-800 rounded border-none outline-none" type="text" value={identifier} onChange={(e) => setIdentifier(e.target.value)} placeholder="Email or Mobile Number" required />
+            <input className="w-4/5 p-3 mb-4 bg-gray-200 text-gray-800 rounded border-none outline-none" type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} placeholder="Password" required />
+            <button disabled={isLoading} className="w-4/5 p-3 mt-2 bg-purple-600 text-white rounded border-none text-lg font-bold cursor-pointer hover:bg-purple-700 disabled:bg-gray-500">
+              {isLoading ? 'Logging in...' : 'Login'}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

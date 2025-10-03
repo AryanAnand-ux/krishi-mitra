@@ -9,11 +9,12 @@ function App() {
   const [userToken, setUserToken] = useState(localStorage.getItem('userToken'));
 
 
-  const handleLoginSuccess = (token) => {
-    // ✨ CHANGE 2: Save the token to localStorage upon login ✨
+// client/src/App.jsx
+const handleLoginSuccess = (token) => {
+    console.log('Login successful! Received Token:', token); // <-- THIS LINE
     localStorage.setItem('userToken', token);
     setUserToken(token);
-  };
+};
 
   const handleLogout = () => {
     // ✨ CHANGE 3: Remove the token from localStorage upon logout ✨

@@ -194,6 +194,45 @@ app.post('/api/suggest-crops', authenticateToken, (req, res) => {
   res.json({ region, season, suggestions });
 });
 
+// ✨ NEW: Secure route for fetching weather data ✨
+app.post('/api/weather', authenticateToken, async (req, res) => {
+  const { lat, lon } = req.body;
+  const apiKey = process.env.OPENWEATHERMAP_API_KEY;
+
+  if (!lat || !lon) {
+    return res.status(400).json({ error: 'Latitude and longitude are required.' });
+  }
+  if (!apiKey) {
+    return res.status(500).json({ error: 'Weather API key is not configured.' });
+  }
+
+  const apiUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
+
+  try {
+    const weatherResponse = await fetch(apiUrl);
+    const weatherData = await weatherResponse.json();
+
+    if (weatherData.cod !== 200) {
+      // This will catch errors like an inactive/invalid API key
+      return res.status(weatherData.cod).json({ message: weatherData.message });
+    }
+
+    // We only need to send the essential data to the frontend
+    const essentialData = {
+      temp: weatherData.main.temp,
+      description: weatherData.weather[0].description,
+      icon: weatherData.weather[0].icon,
+      humidity: weatherData.main.humidity,
+      windSpeed: weatherData.wind.speed,
+    };
+    
+    res.json(essentialData);
+
+  } catch (error) {
+    console.error('Error fetching weather data:', error);
+    res.status(500).json({ error: 'Failed to fetch weather data.' });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`Server is running successfully on http://localhost:${PORT}`);

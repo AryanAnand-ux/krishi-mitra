@@ -1,154 +1,236 @@
-// src/pages/Dashboard.jsx
+// client/src/pages/Dashboard.jsx
 
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
+import ThemeToggle from '../components/ThemeToggle';
 
-// A simple functional component for styling the button
-const ActionButton = ({ onClick, children }) => (
-  <button onClick={onClick} style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', margin: '10px' }}>
-    {children}
-  </button>
-);
+const getFormattedDate = () => {
+  return new Date().toLocaleDateString('en-IN', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+};
 
 const Dashboard = ({ userToken, onLogout }) => {
+  const [address, setAddress] = useState(null);
   const [location, setLocation] = useState(null);
-  const [address, setAddress] = useState(null); // ✨ ADD THIS STATE
-
+  const [weather, setWeather] = useState(null);
   const [isLocating, setIsLocating] = useState(false);
   const [error, setError] = useState('');
-
-  // ✨ NEW: State for crop suggestions ✨
   const [suggestions, setSuggestions] = useState([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [cropInfo, setCropInfo] = useState(null);
-
-   // ✨ This useEffect hook will run once when the component loads
-  useEffect(() => {
-    handleGetLocation();
-  }, []); // The empty array [] means it only runs once on mount
-
-  // ✨ NEW: This effect runs whenever the 'location' state changes ✨
-  useEffect(() => {
-    if (location) {
-      const fetchCrops = async () => {
-        setIsLoadingSuggestions(true);
-        try {
-          const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/suggest-crops`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${userToken}`, // Send the auth token
-            },
-            body: JSON.stringify(location),
-          });
-
-          if (!response.ok) {
-            throw new Error('Failed to fetch crop suggestions.');
-          }
-
-          const data = await response.json();
-          setSuggestions(data.suggestions);
-          setCropInfo({ region: data.region, season: data.season });
-
-        } catch (err) {
-          setError(err.message);
-        } finally {
-          setIsLoadingSuggestions(false);
-        }
-      };
-
-      fetchCrops();
-    }
-  }, [location, userToken]); // Dependency array: runs when location or userToken changes
+  const [currentDate] = useState(getFormattedDate());
 
   const handleGetLocation = () => {
     if (!navigator.geolocation) {
-      setError('Geolocation is not supported by your browser.');
+      setError('Geolocation is not supported.');
+      toast.error('Geolocation is not supported.');
       return;
     }
-
-    setIsLocating(true);
+    setAddress(null);
+    setSuggestions([]);
+    setWeather(null);
     setError('');
+    setIsLocating(true);
 
-    // This is the core Geolocation API call
     navigator.geolocation.getCurrentPosition(
-      // Success callback
       async (position) => {
         const { latitude, longitude } = position.coords;
-        setLocation({ lat: latitude, lon: longitude });
-        // --- NEW: Reverse Geocoding API Call ---
+        const newLocation = { lat: latitude, lon: longitude };
+        setLocation(newLocation); // Set coordinates to trigger data fetching
+
         try {
+          // Fetch Address
           const geoApiUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`;
-          const response = await fetch(geoApiUrl);
-          const data = await response.json();
-          
-          if (data.address) {
+          const addressResponse = await fetch(geoApiUrl);
+          const addressData = await addressResponse.json();
+          if (addressData.address) {
             setAddress({
-              pincode: data.address.postcode || 'N/A',
-              cityName: data.address.city || data.address.town || data.address.village || 'N/A',
-              district: data.address.state_district || 'N/A',
-              state: data.address.state || 'N/A',
-              country: data.address.country || 'N/A',
+              cityName: addressData.address.city || addressData.address.town || addressData.address.village || 'N/A',
+              district: addressData.address.state_district || 'N/A',
+              state: addressData.address.state || 'N/A',
             });
           }
         } catch (geoError) {
           setError('Could not fetch address details.');
+          toast.error('Could not fetch address details.');
+        } finally {
+          setIsLocating(false);
         }
-        // --- End of new part ---
-        setIsLocating(false);
       },
-      // Error callback
       (err) => {
         if (err.code === err.PERMISSION_DENIED) {
-          setError('Location permission was denied. Please enable it to get crop suggestions.');
+          setError('Location permission was denied.');
+          toast.error('Location permission was denied.');
         } else {
-          setError('Could not get location. Please try again.');
+          setError('Could not get your location.');
+          toast.error('Could not get your location.');
         }
         setIsLocating(false);
       }
     );
   };
 
+  useEffect(() => {
+    handleGetLocation(); // Get initial location when component mounts
+  }, []);
+
+  useEffect(() => {
+    // This effect runs whenever the location is updated
+    if (location && userToken) {
+      const fetchData = async () => {
+        setIsLoadingSuggestions(true);
+        try {
+          // Set up both API calls
+          const cropsPromise = fetch(`${import.meta.env.VITE_API_BASE_URL}/api/suggest-crops`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${userToken}` },
+            body: JSON.stringify(location),
+          });
+          const weatherPromise = fetch(`${import.meta.env.VITE_API_BASE_URL}/api/weather`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${userToken}` },
+            body: JSON.stringify(location),
+          });
+
+          // Wait for both to complete
+          const [cropsResponse, weatherResponse] = await Promise.all([cropsPromise, weatherPromise]);
+          if (!cropsResponse.ok || !weatherResponse.ok) {
+            throw new Error('Failed to fetch data from the server.');
+          }
+          const cropsData = await cropsResponse.json();
+          const weatherData = await weatherResponse.json();
+
+          // Update state with new data
+          setSuggestions(cropsData.suggestions);
+          setCropInfo({ region: cropsData.region, season: cropsData.season });
+          setWeather(weatherData);
+        } catch (err) {
+          setError(err.message);
+          toast.error(err.message);
+        } finally {
+          setIsLoadingSuggestions(false);
+        }
+      };
+      fetchData();
+    }
+  }, [location, userToken]);
+
   return (
-    <div style={{ textAlign: 'center', padding: '2rem' }}>
-      <h1>Welcome to Krishi Mitra!</h1>
-      <p>Let's find the best crops for you to grow.</p>
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 font-sans">
+      <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
+        <motion.header
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="mb-8"
+        >
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Namaste, Farmer 👩‍🌾</h1>
+              <p className="text-md text-gray-500 dark:text-gray-400">{currentDate}</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <ThemeToggle />
+              <button onClick={onLogout} className="bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600 transition duration-300">
+                Logout
+              </button>
+            </div>
+          </div>
+        </motion.header>
 
-      {!location && (
-        <ActionButton onClick={handleGetLocation}>
-          {isLocating ? 'Getting Location...' : 'Get My Location'}
-        </ActionButton>
-      )}
+        <main className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="md:col-span-2 space-y-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md"
+            >
+              <div className="flex justify-between items-start">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-200 mb-2">Your Location</h2>
+                  {isLocating && <p className="text-gray-600 dark:text-gray-300">Detecting location...</p>}
+                  {error && <p className="text-red-500 font-semibold">{error}</p>}
+                  {address && (
+                    <p className="text-lg text-gray-600 dark:text-gray-300">
+                      {address.cityName}, {address.district}, {address.state}
+                    </p>
+                  )}
+                </div>
+                <button onClick={handleGetLocation} disabled={isLocating} className="bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600 transition duration-300 disabled:bg-gray-400">
+                  📍 Update
+                </button>
+              </div>
+            </motion.div>
 
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+            {(isLoadingSuggestions) && <p className="text-center text-gray-600 dark:text-gray-300">Finding crop and weather data...</p>}
+            
+            {suggestions.length > 0 && (
+              <motion.div
+                className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+              >
+                <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-200 mb-2">Top Crop Suggestions</h2>
+                <p className="text-md text-gray-500 dark:text-gray-400 mb-4">
+                  Based on your region (<strong>{cropInfo.region}</strong>) and the current <strong>{cropInfo.season}</strong> season:
+                </p>
+                <motion.ul
+                  className="grid grid-cols-2 sm:grid-cols-3 gap-4"
+                  variants={{
+                    hidden: { opacity: 0 },
+                    show: { opacity: 1, transition: { staggerChildren: 0.1 } }
+                  }}
+                  initial="hidden"
+                  animate="show"
+                >
+                  {suggestions.map((crop) => (
+                    <motion.li
+                      key={crop}
+                      className="bg-green-500 text-white text-center font-bold p-4 rounded-lg shadow-sm hover:bg-green-600 transition duration-300"
+                      variants={{ hidden: { y: 20, opacity: 0 }, show: { y: 0, opacity: 1 } }}
+                    >
+                      {crop}
+                    </motion.li>
+                  ))}
+                </motion.ul>
+              </motion.div>
+            )}
+          </div>
 
-        {/* ✨ NEW: Display the formatted address */}
-      {address && (
-        <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#e8f5e9', borderRadius: '8px' }}>
-          <h3>Your Detected Location:</h3>
-          <p>
-            {address.cityName}, {address.district}, {address.state} - {address.pincode}
-          </p>
-        </div>
-      )}
-      {/* ✨ NEW: Display area for crop suggestions ✨ */}
-      {isLoadingSuggestions && <p>Finding the best crops for your area...</p>}
+          <div className="space-y-8">
+            {weather && (
+              <motion.div
+                className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5 }}
+              >
+                <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-200 mb-4">Current Weather</h2>
+                <div className="flex items-center justify-center">
+                  <img src={`https://openweathermap.org/img/wn/${weather.icon}@2x.png`} alt={weather.description} className="w-20 h-20" />
+                  <div className="text-5xl font-bold text-gray-800 dark:text-white">
+                    {Math.round(weather.temp)}°C
+                  </div>
+                </div>
+                <div className="text-center mt-4">
+                  <p className="capitalize text-lg text-gray-600 dark:text-gray-300">{weather.description}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Humidity: {weather.humidity}%</p>
+                </div>
+              </motion.div>
+            )}
+          </div>
+        </main>
 
-      {suggestions.length > 0 && (
-        <div style={{ marginTop: '30px' }}>
-          <h2>Top Crop Suggestions</h2>
-          <p>For your region (<strong>{cropInfo.region}</strong>) during the <strong>{cropInfo.season}</strong> season:</p>
-          <ul style={{ listStyle: 'none', padding: 0 }}>
-            {suggestions.map((crop) => (
-              <li key={crop} style={{ background: '#28a745', color: 'white', padding: '15px', margin: '10px auto', borderRadius: '8px', maxWidth: '300px' }}>
-                {crop}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <div style={{ marginTop: '50px' }}>
-        <ActionButton onClick={onLogout}>Logout</ActionButton>
+        <footer className="text-center mt-12">
+          <p className="text-gray-500 dark:text-gray-400">Powered by Krishi Mitra 🌱</p>
+        </footer>
       </div>
     </div>
   );
